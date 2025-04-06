@@ -3,23 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mahjong Game</title>
+    <title>American Mahjong</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Mahjong</h1>
+        <h1>American Mahjong</h1>
         <div class="game-info">
-            <span class="timer">Time: <span id="timer">00:00</span></span>
-            <button id="newGame">New Game</button>
+            <div class="timer" id="timer">00:00</div>
+            <div class="buttons">
+                <button id="shuffleButton">Shuffle</button>
+                <button id="newGame">New Game</button>
+            </div>
         </div>
-        <div id="gameBoard" class="game-board"></div>
+        <div class="game-board" id="gameBoard"></div>
+        
+        <div class="rules-box">
+            <h3>Game Rules</h3>
+            <ul>
+                <li>Match pairs of identical tiles to remove them from the board.</li>
+                <li>Use the Shuffle button to rearrange remaining tiles if you get stuck.</li>
+                <li>Try to finish the game with the least time and fewest shuffles.</li>
+            </ul>
+        </div>
     </div>
 
     <div class="victory-modal" id="victoryModal">
         <div class="victory-content">
-            <h2>🎉 Congratulations! 🎉</h2>
+            <h2>Victory!</h2>
             <p>You completed the game in <span id="completionTime">00:00</span></p>
+            <p>Number of shuffles: <span id="shuffleCount">0</span></p>
             <button id="playAgain">Play Again</button>
         </div>
     </div>
