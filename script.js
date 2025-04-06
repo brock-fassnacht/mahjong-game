@@ -16,8 +16,97 @@ class MahjongGame {
         this.gameStarted = false;
         this.shuffleCount = 0;
         
+        // Sound-related properties
+        this.audioEnabled = true;
+        this.audioContext = null;
+        this.lastMatchTime = 0;
+        this.consecutiveMatches = 0;
+        this.currentVolume = 0.6;
+        
+        // Initialize audio with proper error handling
+        this.initAudio();
+        
         this.initializeGame();
         this.setupEventListeners();
+    }
+
+    initAudio() {
+        try {
+            // Create an AudioContext - this works more reliably in Chrome
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioContext = new AudioContext();
+            
+            // Use a simple oscillator-based sound that will definitely work
+            this.createSimpleSound = () => {
+                // Check if audio context is in suspended state (Chrome's autoplay policy)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
+                // Create a click sound (short percussive sound)
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                // Use a noise-like waveform for click
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime); // Lower frequency for click
+                
+                // Configure volume - very short attack and decay for click sound
+                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(this.currentVolume || 0.6, this.audioContext.currentTime + 0.001); // Fast attack
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.08); // Quick decay
+                
+                // Connect nodes
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                // Start and stop - shorter duration for click
+                oscillator.start();
+                oscillator.stop(this.audioContext.currentTime + 0.08);
+                
+                console.log("Playing click sound");
+            };
+            
+            // Initialize audio context on first user interaction
+            const initOnInteraction = () => {
+                // Resume audio context (needed for Chrome)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        console.log("AudioContext resumed successfully");
+                    }).catch(e => {
+                        console.error("Failed to resume AudioContext:", e);
+                    });
+                }
+                
+                // Play a silent sound to initialize audio
+                const silentOscillator = this.audioContext.createOscillator();
+                const silentGain = this.audioContext.createGain();
+                silentGain.gain.setValueAtTime(0, this.audioContext.currentTime); // Silent
+                silentOscillator.connect(silentGain);
+                silentGain.connect(this.audioContext.destination);
+                silentOscillator.start();
+                silentOscillator.stop(this.audioContext.currentTime + 0.001);
+                
+                console.log("Audio system initialized on user interaction");
+                
+                // Remove event listeners once initialized
+                document.removeEventListener('click', initOnInteraction);
+                document.removeEventListener('touchstart', initOnInteraction);
+                document.removeEventListener('keydown', initOnInteraction);
+            };
+            
+            // Add event listeners for user interaction
+            document.addEventListener('click', initOnInteraction);
+            document.addEventListener('touchstart', initOnInteraction);
+            document.addEventListener('keydown', initOnInteraction);
+            
+            this.audioEnabled = true;
+            console.log("Audio system set up successfully");
+            
+        } catch (error) {
+            console.error("Audio initialization failed:", error);
+            this.audioEnabled = false;
+        }
     }
 
     initializeGame() {
@@ -376,6 +465,9 @@ class MahjongGame {
                         this.tiles[currentIndex].matched = true;
                         this.tiles[selectedIndex].matched = true;
                         
+                        // Play match sound with crescendo
+                        this.playMatchSound();
+                        
                         // Update visibility after removing matched tiles
                         this.updateTileVisibility();
                         
@@ -480,6 +572,40 @@ class MahjongGame {
         
         // Show modal with animation
         this.victoryModal.classList.add('show');
+    }
+
+    playMatchSound() {
+        if (!this.audioEnabled || !this.audioContext) {
+            console.log("Audio is not enabled or initialized");
+            return;
+        }
+        
+        const now = Date.now();
+        const timeSinceLastMatch = now - this.lastMatchTime;
+        
+        // Check if match happened within 3 seconds of the last match
+        if (timeSinceLastMatch < 3000) {
+            // Increase consecutive match counter (max 5 for volume control)
+            this.consecutiveMatches = Math.min(this.consecutiveMatches + 1, 5);
+        } else {
+            // Reset counter if more than 3 seconds since last match
+            this.consecutiveMatches = 0;
+        }
+        
+        // Update the last match time
+        this.lastMatchTime = now;
+        
+        // Adjust volume based on consecutive matches (0.6 - 1.0)
+        const baseVolume = 0.6;
+        const volumeIncrement = 0.08; // Each match increases volume by 8%
+        this.currentVolume = Math.min(baseVolume + (this.consecutiveMatches * volumeIncrement), 1.0);
+        
+        // Play the simple sound
+        try {
+            this.createSimpleSound();
+        } catch (e) {
+            console.error("Error playing sound:", e);
+        }
     }
 }
 
